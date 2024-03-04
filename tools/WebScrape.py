@@ -39,6 +39,7 @@ def loadAndParse(url:str, useSelenium:bool = False):
             if not parse_errors:
                 return
 
+        element = None
         #only parse the page if there was no error
         if error is None:
             try:

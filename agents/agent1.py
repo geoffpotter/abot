@@ -65,8 +65,8 @@ tools = [replTool] + [tool.getTool() for tool in toolsDefs] + github_tools_raw
 # toolsDefs:list[AgentToolDefinition] = [arxiv]
 # tools = [replTool] + [tool.getTool() for tool in toolsDefs]# + github_tools_raw
 
-
-llm = getOpenAILLM()
+llm = getOpenAIChatLLM()
+# llm = getOpenAILLM()
 # llm = AlpacaLLM()
 
 # # STRUCTURED_CHAT includes args_schema for each tool, helps tool args parsing errors.
@@ -129,8 +129,11 @@ class CustomPromptTemplate(BaseChatPromptTemplate):
             # Set the agent_scratchpad variable to that value
             kwargs["agent_scratchpad"] = thoughts
         else:
-            print("No intermediate steps found. Setting agent_scratchpad to empty string.")
-            kwargs["agent_scratchpad"] = ""
+            if "agent_scratchpad" in kwargs:
+                print("No intermediate steps found. Setting agent_scratchpad to previous value.")
+            else:
+                print("No intermediate steps found. Setting agent_scratchpad to empty string.")
+                kwargs["agent_scratchpad"] = ""
         
         # Create a tools variable from the list of tools provided
         kwargs["tools"] = "\n".join([f"{tool.name}: {tool.description}" for tool in self.tools])
@@ -183,9 +186,15 @@ class CustomOutputParser(AgentOutputParser):
         # If it can't parse the output it raises an error
         # You can add your own logic here to handle errors in a different way i.e. pass to a human, give a canned response
         if not match:
-            raise ValueError(f"Could not parse LLM output: `{llm_output}`")
-        action = match.group(1).strip()
-        action_input = match.group(2)
+            regex = r"Action:[\s]*(.*?)"
+            match = re.search(regex, llm_output, re.DOTALL)
+            if not match:
+                raise ValueError(f"Could not parse LLM output: `{llm_output}`")
+            action = match.group(1).strip()
+            action_input = ""
+        else:
+            action = match.group(1).strip()
+            action_input = match.group(2)
         print("action:", action, "action_input:", action_input)
         # Return the action and action input
         return AgentAction(tool=action, tool_input=action_input.strip(" ").strip('"'), log=llm_output)
@@ -253,6 +262,6 @@ class AgentInput(BaseModel):
 agent = create_react_agent(llm, tools, hub_prompt)
 # agent = create_structured_chat_agent(llm, tools, hub_prompt2)
 
-agent_executor = AgentExecutor(agent=chain, tools=tools, max_iterations=50).with_types(input_type=AgentInput)
+agent_executor = AgentExecutor(agent=chain, tools=tools, max_iterations=50, return_intermediate_steps=True).with_types(input_type=AgentInput)
 
 agent_executor = agent_executor | (lambda x: x["output"])

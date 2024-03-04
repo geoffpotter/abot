@@ -1,9 +1,13 @@
+import os
 from langchain_community.agent_toolkits.github.toolkit import GitHubToolkit
 from langchain_community.utilities.github import GitHubAPIWrapper
 from lib.AgentToolDefinition import AgentToolDefinition as toolDef
 
 github = GitHubAPIWrapper()
+ai_branch = os.environ.get("GITHUB_BRANCH", "ai-code")
+github.set_active_branch(ai_branch)
 toolkit = GitHubToolkit.from_github_api_wrapper(github)
+
 github_tools_raw = toolkit.get_tools()
 
 github_tools = []
